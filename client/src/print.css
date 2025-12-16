@@ -1,0 +1,45 @@
+@media print {
+
+    /* Global Hide */
+    body * {
+        visibility: hidden;
+    }
+
+    /* Show Printable Area */
+    #printable-area,
+    #printable-area * {
+        visibility: visible;
+    }
+
+    /* Position Printable Area */
+    #printable-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 20px;
+        /* Add some padding for the paper edge */
+        background: white;
+    }
+
+    /* Hide buttons specifically even inside printable area if needed (already has print:hidden class but good backup) */
+    button {
+        display: none !important;
+    }
+
+    /* Remove shadows and borders for cleaner print */
+    .card,
+    .shadow-lg,
+    .shadow-md {
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    /* Ensure text is black */
+    * {
+        color: black !important;
+        print-color-adjust: exact !important;
+        -webkit-print-color-adjust: exact !important;
+    }
+}
