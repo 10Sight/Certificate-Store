@@ -11,7 +11,7 @@ const app = express();
 const PORT = ENV.PORT || 3000;
 
 const corsOptions = {
-    origin: ["http://localhost:5173", "https://certificate-store-client.onrender.com", "https://certificate-store.onrender.com"],
+    origin: ["https://certificate-store.onrender.com", "http://localhost:5173"],
     credentials: true,
 };
 
@@ -30,8 +30,8 @@ app.get('/', (req, res) => {
 
 try {
     app.listen(PORT, async () => {
-        await connectDB();
         logger.http(`http://localhost:${PORT}`);
+        await connectDB();
     });
 } catch (error) {
     logger.error("MONGO db connection failed !!! ", error);
