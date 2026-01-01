@@ -6,7 +6,8 @@ import {
     getUserById,
     deleteUserById,
     deleteUsers,
-    updateUser
+    updateUser,
+    bulkImportUsers
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import verifyJWT from "../middlewares/auth.middleware.js";
@@ -28,6 +29,7 @@ router.route("/")
     .delete(verifyJWT, authorizeRoles("ADMIN"), deleteUsers);
 
 router.post('/register', verifyJWT, authorizeRoles("ADMIN"), upload.single('profilePhoto'), register);
+router.post('/bulk-import', verifyJWT, authorizeRoles("ADMIN"), upload.single('file'), bulkImportUsers);
 
 router.route("/:id")
     .get(verifyJWT, getUserById) // Viewing single profile might be allowed for self/others? Lets keep it verifyJWT for now.

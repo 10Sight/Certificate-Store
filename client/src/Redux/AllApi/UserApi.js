@@ -94,6 +94,19 @@ export const userApi = createApi({
             }),
             invalidatesTags: ['User'],
         }),
+
+        /**
+         * @desc Bulk import users from Excel
+         * @method POST
+         */
+        bulkImportUsers: builder.mutation({
+            query: (body) => ({
+                url: "/api/v1/users/bulk-import",
+                method: "POST",
+                data: body
+            }),
+            invalidatesTags: ['User'],
+        }),
     })
 });
 
@@ -104,5 +117,6 @@ export const {
     useGetAllUsersQuery,
     useGetUserByIdQuery,
     useDeleteUserByIdMutation,
-    useDeleteUsersMutation
+    useDeleteUsersMutation,
+    useBulkImportUsersMutation
 } = userApi;

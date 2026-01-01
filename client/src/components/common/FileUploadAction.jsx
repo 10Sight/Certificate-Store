@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 
-const FileUploadAction = ({ title, description, icon: Icon, onFileSelect, accept = "*", color = "blue" }) => {
+const FileUploadAction = ({ title, description, icon: Icon, onFileSelect, accept = "*", color = "blue", multiple = false }) => {
     const fileInputRef = useRef(null);
 
     const colorClasses = {
@@ -18,9 +18,9 @@ const FileUploadAction = ({ title, description, icon: Icon, onFileSelect, accept
     };
 
     const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file && onFileSelect) {
-            onFileSelect(file);
+        const files = Array.from(e.target.files);
+        if (files.length > 0 && onFileSelect) {
+            onFileSelect(multiple ? files : files[0]);
         }
         // Reset input so the same file can be selected again if needed
         e.target.value = '';
@@ -34,6 +34,7 @@ const FileUploadAction = ({ title, description, icon: Icon, onFileSelect, accept
                 className="hidden"
                 accept={accept}
                 onChange={handleFileChange}
+                multiple={multiple}
             />
             <div
                 onClick={handleClick}

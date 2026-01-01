@@ -64,6 +64,14 @@ const userSchema = new Schema(
             enum: AvailableEmploymentTypes,
             default: EmploymentTypeEnum.PERMANENT,
         },
+        department: {
+            type: Schema.Types.ObjectId,
+            ref: 'Department',
+        },
+        assignedSkill: {
+            type: Schema.Types.ObjectId,
+            ref: 'Skill',
+        },
         skillMatrix: [
             {
                 name: { type: String, required: true },

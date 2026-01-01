@@ -13,8 +13,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useGetAllUsersQuery, useUserRegisterMutation, useDeleteUserByIdMutation, useUserUpdateMutation } from '../../Redux/AllApi/UserApi';
-import { toast } from 'sonner'; // Assuming sonner is used, or console.log/alert if not sure. I'll use alert for now or check if toast exists.
+import { useGetAllUsersQuery, useUserRegisterMutation, useDeleteUserByIdMutation, useUserUpdateMutation, useBulkImportUsersMutation } from '../../Redux/AllApi/UserApi';
+import { useGetAllDepartmentsQuery } from '../../Redux/AllApi/DepartmentApi';
+import { useGetAllSkillsQuery } from '../../Redux/AllApi/SkillApi';
+import { toast } from 'sonner';
 
 const AllUser = () => {
   const navigate = useNavigate();
@@ -26,6 +28,12 @@ const AllUser = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedUsers, setSelectedUsers] = useState(new Set());
+
+  // Import State
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importResults, setImportResults] = useState(null);
+  const [bulkImport, { isLoading: isBulkImporting }] = useBulkImportUsersMutation();
 
   // ... (hooks)
 
@@ -57,6 +65,8 @@ const AllUser = () => {
     role: 'WORKER',
     employmentType: 'PERMANENT',
     iCardNumber: '',
+    department: '',
+    assignedSkill: '',
     profilePhoto: null
   });
 
@@ -72,6 +82,12 @@ const AllUser = () => {
     employmentType: activeTab === 'all' ? undefined : activeTab.toUpperCase(),
     dateOfJoining: dateFilter || undefined // Pass date filter
   });
+
+  const { data: deptData } = useGetAllDepartmentsQuery();
+  const activeDepartments = deptData?.data?.filter(d => d.isActive) || [];
+
+  const { data: skillData } = useGetAllSkillsQuery();
+  const allSkills = skillData?.data || [];
 
   const [registerUser, { isLoading: isRegistering }] = useUserRegisterMutation();
   const [updateUser, { isLoading: isUpdating }] = useUserUpdateMutation();
@@ -106,6 +122,8 @@ const AllUser = () => {
       role: user.role || 'WORKER',
       employmentType: user.employmentType || 'PERMANENT',
       iCardNumber: user.iCardNumber || '',
+      department: user.department?._id || user.department || '', // Handle populated or id
+      assignedSkill: user.assignedSkill?._id || user.assignedSkill || '',
       profilePhoto: null
     });
     setIsAddUserOpen(true);
@@ -135,6 +153,12 @@ const AllUser = () => {
       data.append('role', formData.role);
       data.append('employmentType', formData.employmentType);
       data.append('iCardNumber', formData.iCardNumber);
+      if (formData.department) data.append('department', formData.department);
+      if (formData.assignedSkill === 'none') {
+        data.append('assignedSkill', '');
+      } else if (formData.assignedSkill) {
+        data.append('assignedSkill', formData.assignedSkill);
+      }
 
       if (formData.profilePhoto) {
         data.append('profilePhoto', formData.profilePhoto);
@@ -173,6 +197,71 @@ const AllUser = () => {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    const template = [
+      {
+        fullName: 'John Doe',
+        email: 'john@example.com',
+        mobile: '1234567890',
+        iCardNumber: 'EMP001',
+        department: 'Assembly',
+        role: 'WORKER',
+        employmentType: 'PERMANENT',
+        dateOfJoining: '2023-01-01'
+      },
+      {
+        fullName: 'Jane Smith',
+        email: 'jane@example.com',
+        mobile: '9876543210',
+        iCardNumber: 'EMP002',
+        department: 'Production',
+        role: 'WORKER',
+        employmentType: 'CASUAL',
+        dateOfJoining: '2023-05-15'
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "User_Import_Template.xlsx");
+    toast.info("Download template started...");
+  };
+
+  const handleImportSubmit = async () => {
+    if (!importFile) {
+      toast.error("Please select a file first");
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      const res = await bulkImport(formData).unwrap();
+
+      setImportResults(res.data);
+
+      if (res.data.errors.length === 0) {
+        toast.success(`Successfully imported ${res.data.success.length} users`);
+        setIsImportModalOpen(false);
+        setImportFile(null);
+        refetch();
+      } else if (res.data.success.length > 0) {
+        toast.warning(`Imported ${res.data.success.length} users with ${res.data.errors.length} errors.`);
+        refetch();
+      } else {
+        toast.error(`Import failed with ${res.data.errors.length} errors.`);
+      }
+    } catch (error) {
+      console.error('Import Failed', error);
+      toast.error(error?.data?.message || 'Bulk import failed');
+    }
+  };
+
+  const closeImportModal = () => {
+    setIsImportModalOpen(false);
+    setImportFile(null);
+    setImportResults(null);
+  };
+
   const handleExport = () => {
     if (!users || users.length === 0) {
       toast.error('No users to export');
@@ -189,6 +278,7 @@ const AllUser = () => {
       'Email': user.email,
       'Mobile': user.mobile,
       'Date of Joining': new Date(user.dateOfJoining).toLocaleDateString(),
+      'Department': user.department?.name || 'N/A',
       'Role': user.role,
       'Employment Type': user.employmentType,
     }));
@@ -216,6 +306,8 @@ const AllUser = () => {
       role: 'WORKER',
       employmentType: 'PERMANENT',
       iCardNumber: '',
+      department: '',
+      assignedSkill: '',
       profilePhoto: null
     });
   };
@@ -239,10 +331,16 @@ const AllUser = () => {
             {selectedUsers.size > 0 ? `Export (${selectedUsers.size})` : 'Export All'}
           </Button>
           {currentUser?.role === 'ADMIN' && (
-            <Button onClick={() => setIsAddUserOpen(true)}>
-              <IconUsers className="mr-2 h-4 w-4" />
-              Add User
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+                <IconDownload className="mr-2 h-4 w-4" />
+                Import Users
+              </Button>
+              <Button onClick={() => setIsAddUserOpen(true)}>
+                <IconUsers className="mr-2 h-4 w-4" />
+                Add User
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -293,6 +391,7 @@ const AllUser = () => {
                 <th className="px-6 py-3">Employee</th>
                 <th className="px-6 py-3">Contact</th>
                 <th className="px-6 py-3">Date of Joining</th>
+                <th className="px-6 py-3">Department</th>
                 <th className="px-6 py-3">Role</th>
                 <th className="px-6 py-3">Employment Type</th>
                 <th className="px-6 py-3 text-right">Action</th>
@@ -342,6 +441,11 @@ const AllUser = () => {
                     </td>
                     <td className="px-6 py-4 text-gray-700">
                       {new Date(emp.dateOfJoining).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-gray-900 font-medium">
+                        {emp.department?.name || '-'}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${emp.role === 'ADMIN'
@@ -536,6 +640,47 @@ const AllUser = () => {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    <div className="col-span-1 md:col-span-2">
+                      <Label htmlFor="department" className="text-gray-700">Department</Label>
+                      <Select
+                        value={formData.department}
+                        onValueChange={(val) => setFormData(prev => ({ ...prev, department: val }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select Department" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[10000] bg-white">
+                          {activeDepartments.map((dept) => (
+                            <SelectItem key={dept._id} value={dept._id}>
+                              {dept.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500 mt-1">If not selected, defaults to "Assembly".</p>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-2">
+                      <Label htmlFor="assignedSkill" className="text-gray-700">Assigned Skill (Direct Exam Link)</Label>
+                      <Select
+                        value={formData.assignedSkill}
+                        onValueChange={(val) => setFormData(prev => ({ ...prev, assignedSkill: val }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select Skill (Optional)" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[10000] bg-white">
+                          <SelectItem value="none">None</SelectItem>
+                          {allSkills.map((skill) => (
+                            <SelectItem key={skill._id} value={skill._id}>
+                              {skill.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500 mt-1">Overrides Department-based Skill if set. User takes exam for this Skill.</p>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -577,6 +722,96 @@ const AllUser = () => {
               </Button>
             </div>
 
+          </div>
+        </div>,
+        document.body
+      )}
+      {/* Bulk Import Modal */}
+      {isImportModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-xl font-bold text-gray-800">Bulk Import Users</h2>
+              <button onClick={closeImportModal} className="text-gray-400 hover:text-gray-600 p-1 rounded-full"><IconX /></button>
+            </div>
+
+            <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+              <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg flex items-start gap-3">
+                <div className="bg-blue-100 p-2 rounded-full text-blue-600 mt-1"><IconDownload size={18} /></div>
+                <div>
+                  <h4 className="font-bold text-blue-800 text-sm">Download Template First</h4>
+                  <p className="text-xs text-blue-600 mt-1">Use our template to ensure your data format is correct. Missing fields or wrong formats will cause errors.</p>
+                  <Button variant="link" onClick={handleDownloadTemplate} className="text-blue-700 h-auto p-0 font-bold mt-2 text-xs">
+                    Download user_template.xlsx
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <Label className="text-gray-700 font-bold">Select Excel File (.xlsx, .xls)</Label>
+                <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${importFile ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-blue-300 bg-gray-50'}`}>
+                  <input
+                    type="file"
+                    id="bulkImportFile"
+                    className="hidden"
+                    accept=".xlsx, .xls"
+                    onChange={(e) => setImportFile(e.target.files[0])}
+                  />
+                  <label htmlFor="bulkImportFile" className="cursor-pointer">
+                    {importFile ? (
+                      <div className="space-y-2">
+                        <div className="text-green-600 font-bold">{importFile.name}</div>
+                        <div className="text-xs text-green-500">{(importFile.size / 1024).toFixed(2)} KB</div>
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.preventDefault(); setImportFile(null); }} className="text-red-500 h-auto p-0 hover:bg-transparent">Remove file</Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <IconDownload className="mx-auto text-gray-400" size={32} />
+                        <div className="text-sm font-medium text-gray-600">Click to upload or drag and drop</div>
+                        <div className="text-xs text-gray-400 uppercase tracking-widest font-bold">Excel files only</div>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+
+              {importResults && importResults.errors.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-red-600 uppercase tracking-wider">Failed Rows ({importResults.errors.length})</h3>
+                  <div className="border rounded-lg overflow-hidden max-h-60 overflow-y-auto shadow-sm">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-red-50 text-red-700 uppercase font-black">
+                        <tr>
+                          <th className="px-4 py-2">Row</th>
+                          <th className="px-4 py-2">Name</th>
+                          <th className="px-4 py-2">Error Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {importResults.errors.map((err, idx) => (
+                          <tr key={idx} className="bg-white">
+                            <td className="px-4 py-2 font-mono text-gray-500">{err.row}</td>
+                            <td className="px-4 py-2 font-bold">{err.data?.fullName || "Unknown"}</td>
+                            <td className="px-4 py-2 text-red-600 font-medium">{err.error}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3 sticky bottom-0 z-10">
+              <Button variant="outline" onClick={closeImportModal} className="w-24">Cancel</Button>
+              <Button
+                onClick={handleImportSubmit}
+                className="w-40 bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                disabled={!importFile || isBulkImporting}
+              >
+                {isBulkImporting ? 'Importing...' : 'Start Import'}
+              </Button>
+            </div>
           </div>
         </div>,
         document.body

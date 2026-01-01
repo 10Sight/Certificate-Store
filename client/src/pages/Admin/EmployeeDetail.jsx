@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { IconArrowLeft } from '@tabler/icons-react';
 import SkillCard from '@/components/common/SkillCard';
+import FeedbackCard from '@/components/common/FeedbackCard';
 import { useGetUserByIdQuery } from '../../Redux/AllApi/UserApi';
 
 const EmployeeDetail = () => {
@@ -24,6 +25,7 @@ const EmployeeDetail = () => {
             email: user.email,
             mobile: user.phoneNumber,
         },
+        _id: user._id, // Add ID for sub-navigation
         skillMatrix: user.skillMatrix && user.skillMatrix.length > 0 ? user.skillMatrix : [
             // Fallback default list if empty, or just show empty. 
             // Better to show empty so we know it works.
@@ -81,8 +83,13 @@ const EmployeeDetail = () => {
                 </div>
             </div>
 
-            <div className="flex justify-center">
-                <SkillCard employeeData={employeeData} />
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-10 place-items-start max-w-[1600px] mx-auto pb-10">
+                <div className="w-full h-full">
+                    <SkillCard employeeData={employeeData} />
+                </div>
+                <div className="w-full h-full">
+                    <FeedbackCard employeeData={employeeData} />
+                </div>
             </div>
         </div>
     );

@@ -24,6 +24,7 @@ import {
   IconLayoutSidebarRightCollapse,
   IconLogout,
   IconMail,
+  IconBook,
   IconArticle,
   IconClipboardList,
   IconShoppingCart,
@@ -43,6 +44,7 @@ import {
   IconBulb,
   IconDownload,
   IconClock,
+  IconBuildingSkyscraper,
 } from "@tabler/icons-react";
 import { HomeIcon } from "lucide-react";
 
@@ -57,6 +59,7 @@ const tabs = [
     category: "User Management",
     items: [
       { link: "/all-users", label: "All Users", icon: IconUsers },
+      { link: "/admin/departments", label: "Departments", icon: IconBuildingSkyscraper },
     ]
   },
 ];
@@ -73,7 +76,6 @@ const HomeLayout = ({ children }) => {
   const { user } = useSelector((state) => state.auth);
   const isLoading = false;
 
-  // Update page name based on current route
   // Update page name based on current route
   useEffect(() => {
     // 1. Check for exact match in Sidebar Tabs
@@ -93,6 +95,10 @@ const HomeLayout = ({ children }) => {
       setPageName("Dashboard");
     } else if (pathname.startsWith('/employee/')) {
       setPageName("Employee Detail");
+    } else if (pathname.startsWith('/admin/department/')) {
+      setPageName("Department Detail");
+    } else if (pathname.startsWith('/admin/template/')) {
+      setPageName("Create Template");
     } else if (pathname.startsWith('/process')) {
       setPageName("Process Flow");
     } else {

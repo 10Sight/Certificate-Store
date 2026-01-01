@@ -19,25 +19,34 @@ const Login = () => {
     const dispatch = useDispatch();
 
     const [login, { isLoading }] = useUserLoginMutation();
-    const { isAuthenticated } = useSelector((state) => state.auth);
+    const { isAuthenticated, user } = useSelector((state) => state.auth);
 
     useEffect(() => {
-        if (isAuthenticated) {
-            navigate("/");
+        if (isAuthenticated && user) {
+            if (user.role === "ADMIN") {
+                navigate("/");
+            } else {
+                navigate("/dashboard");
+            }
         }
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated, user, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
             const res = await login({ email, password }).unwrap();
 
-            const user = res.data.user;
+            const loggedInUser = res.data.user;
             const accessToken = res.data.accessToken;
 
-            dispatch(setCredentials({ user, accessToken }));
+            dispatch(setCredentials({ user: loggedInUser, accessToken }));
             toast.success("Login successful!");
-            navigate("/");
+
+            if (loggedInUser.role === "ADMIN") {
+                navigate("/");
+            } else {
+                navigate("/dashboard");
+            }
         } catch (err) {
             console.error(err);
             toast.error(err?.data?.message || "Invalid email or password");
