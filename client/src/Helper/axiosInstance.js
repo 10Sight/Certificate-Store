@@ -1,7 +1,6 @@
 import axios from "axios";
 
-const ENV_BASE = import.meta?.env?.VITE_API_BASE_URL;
-// const BASE_URL = "https://certificate-store-server.onrender.com";
+const ENV_BASE = import.meta?.env?.VITE_API_BASE_URL || import.meta?.env?.VITE_API_URL;
 const BASE_URL = ENV_BASE || "https://certificate-store-server.onrender.com";
 
 const axiosInstance = axios.create({ baseURL: BASE_URL, withCredentials: true });
