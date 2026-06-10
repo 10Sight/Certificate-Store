@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "rate-limiter-flexible": "^9.1.1"
+  }
+}
